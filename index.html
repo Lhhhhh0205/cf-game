@@ -1,232 +1,589 @@
-  <!DOCTYPE html>
-  <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>射击小游戏</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #dcdcdc;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星空射击小游戏</title>
+  <style>
+    :root {
+      --bg: #081120;
+      --panel: rgba(8, 17, 32, 0.82);
+      --line: rgba(154, 197, 255, 0.2);
+      --text: #ecf6ff;
+      --muted: #97a9c5;
+      --accent: #ffb703;
+      --accent-strong: #fb8500;
+      --danger: #ff5d73;
+      --ship: #6bd0ff;
+      --enemy: #ff6b6b;
+      --bullet: #ffe066;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "PingFang SC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(46, 92, 170, 0.45), transparent 28%),
+        linear-gradient(180deg, #02060d 0%, #081120 56%, #0e1b33 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .shell {
+      width: min(920px, 100%);
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(10px);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 42px);
+    }
+
+    .intro {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .hud {
+      min-width: 180px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .hud-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .label {
+      color: var(--muted);
+    }
+
+    .value {
+      font-weight: 700;
+    }
+
+    .arena {
+      position: relative;
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 880px;
+      display: block;
+      margin: 0 auto;
+      border-radius: 22px;
+      border: 1px solid rgba(154, 197, 255, 0.16);
+      background:
+        radial-gradient(circle at 50% 20%, rgba(68, 129, 235, 0.18), transparent 30%),
+        linear-gradient(180deg, #050b16 0%, #091325 100%);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      text-align: center;
+      background: rgba(2, 7, 15, 0.72);
+      border-radius: 22px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+    }
+
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .overlay h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 44px);
+    }
+
+    .overlay p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      color: #081120;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+      cursor: pointer;
+    }
+
+    .ghost {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--line);
+    }
+
+    .tips {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        padding: 14px;
+        border-radius: 20px;
       }
 
-      .box {
-        text-align: center;
+      .topbar {
+        flex-direction: column;
       }
 
-      h1 {
-        color: #222;
-        margin-bottom: 10px;
+      .hud {
+        width: 100%;
       }
 
-      #score {
-        margin-bottom: 10px;
-        font-size: 20px;
-        color: #333;
+      .tips {
+        font-size: 13px;
       }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div>
+        <h1>星空射击小游戏</h1>
+        <p class="intro">左右移动飞船，发射子弹击落敌人。敌人撞到你，游戏结束。分数会随着命中次数增加。</p>
+      </div>
 
-      canvas {
-        background: white;
-        border: 2px solid #333;
-        display: block;
-        margin: 0 auto;
-      }
+      <div class="hud">
+        <div class="hud-row">
+          <span class="label">分数</span>
+          <span id="scoreValue" class="value">0</span>
+        </div>
+        <div class="hud-row">
+          <span class="label">生命</span>
+          <span id="livesValue" class="value">3</span>
+        </div>
+        <div class="hud-row">
+          <span class="label">状态</span>
+          <span id="stateValue" class="value">准备开始</span>
+        </div>
+      </div>
+    </section>
 
-      #restartButton {
-        margin-top: 15px;
-        padding: 10px 18px;
-        font-size: 16px;
-        border: none;
-        border-radius: 8px;
-        background: orange;
-        color: white;
-        cursor: pointer;
-        display: none;
-      }
+    <section class="arena">
+      <canvas id="gameCanvas" width="880" height="520"></canvas>
 
-      #restartButton:hover {
-        background: darkorange;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="box">
-      <h1>射击小游戏</h1>
-      <div id="score">分数：0</div>
-      <canvas id="gameCanvas" width="600" height="400"></canvas>
-      <button id="restartButton" onclick="restartGame()">重新开始</button>
+      <div id="overlay" class="overlay show">
+        <h2 id="overlayTitle">准备出发</h2>
+        <p id="overlayText">按开始按钮进入游戏。电脑可用方向键和空格，手机可用下面的按钮。</p>
+        <div class="actions">
+          <button id="startButton" type="button">开始游戏</button>
+          <button id="restartButton" class="ghost" type="button">重新开始</button>
+        </div>
+      </div>
+    </section>
+
+    <p class="tips">
+      电脑操作：`←` `→` 移动，空格发射。<br>
+      手机上：按住下方左右按钮移动，点击“发射”开火。
+    </p>
+
+    <div class="actions">
+      <button id="leftButton" class="ghost" type="button">向左</button>
+      <button id="fireButton" type="button">发射</button>
+      <button id="rightButton" class="ghost" type="button">向右</button>
     </div>
+  </main>
 
-    <script>
-      const canvas = document.getElementById("gameCanvas");
-      const ctx = canvas.getContext("2d");
-      const scoreText = document.getElementById("score");
-      const restartButton = document.getElementById("restartButton");
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-      let score = 0;
-      let gameOver = false;
+    const scoreValue = document.getElementById("scoreValue");
+    const livesValue = document.getElementById("livesValue");
+    const stateValue = document.getElementById("stateValue");
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayText = document.getElementById("overlayText");
+    const startButton = document.getElementById("startButton");
+    const restartButton = document.getElementById("restartButton");
+    const leftButton = document.getElementById("leftButton");
+    const rightButton = document.getElementById("rightButton");
+    const fireButton = document.getElementById("fireButton");
 
-      let playerX = 250;
-      const playerY = 330;
-      const playerWidth = 100;
-      const playerHeight = 40;
-      const playerSpeed = 20;
+    const stars = Array.from({ length: 60 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 2 + 1,
+      speed: Math.random() * 0.6 + 0.2
+    }));
 
-      let bulletX = 0;
-      let bulletY = 0;
-      let bulletActive = false;
+    const keys = {
+      left: false,
+      right: false
+    };
 
-      let enemyX = 200;
-      let enemyY = 50;
-      const enemyWidth = 80;
-      const enemyHeight = 40;
-      let enemySpeed = 3;
+    const player = {
+      width: 58,
+      height: 28,
+      speed: 6,
+      x: canvas.width / 2 - 29,
+      y: canvas.height - 62
+    };
 
-      function drawPlayer() {
-        ctx.fillStyle = "blue";
-        ctx.fillRect(playerX, playerY, playerWidth, playerHeight);
+    let bullets = [];
+    let enemies = [];
+    let score = 0;
+    let lives = 3;
+    let running = false;
+    let spawnTimer = 0;
+    let fireCooldown = 0;
+    let animationFrameId = 0;
+
+    function resetGame() {
+      player.x = canvas.width / 2 - player.width / 2;
+      bullets = [];
+      enemies = [];
+      score = 0;
+      lives = 3;
+      spawnTimer = 0;
+      fireCooldown = 0;
+      updateHud("准备开始");
+      showOverlay("准备出发", "按开始按钮进入游戏。电脑可用方向键和空格，手机可用下面的按钮。");
+      drawFrame();
+    }
+
+    function startGame() {
+      player.x = canvas.width / 2 - player.width / 2;
+      bullets = [];
+      enemies = [];
+      score = 0;
+      lives = 3;
+      spawnTimer = 0;
+      fireCooldown = 0;
+      running = true;
+      hideOverlay();
+      updateHud("战斗中");
+    }
+
+    function endGame() {
+      running = false;
+      updateHud("已结束");
+      showOverlay("游戏结束", "最终分数：" + score + "。点击“重新开始”再来一次。");
+    }
+
+    function showOverlay(title, text) {
+      overlayTitle.textContent = title;
+      overlayText.textContent = text;
+      overlay.classList.add("show");
+    }
+
+    function hideOverlay() {
+      overlay.classList.remove("show");
+    }
+
+    function updateHud(state) {
+      scoreValue.textContent = String(score);
+      livesValue.textContent = String(lives);
+      stateValue.textContent = state;
+    }
+
+    function spawnEnemy() {
+      enemies.push({
+        x: Math.random() * (canvas.width - 42),
+        y: -40,
+        width: 42,
+        height: 26,
+        speed: Math.random() * 1.4 + 1.6
+      });
+    }
+
+    function fireBullet() {
+      if (!running || fireCooldown > 0) {
+        return;
       }
 
-      function drawBullet() {
-        if (bulletActive) {
-          ctx.fillStyle = "red";
-          ctx.fillRect(bulletX, bulletY, 10, 20);
+      bullets.push({
+        x: player.x + player.width / 2 - 3,
+        y: player.y - 12,
+        width: 6,
+        height: 14,
+        speed: 8
+      });
+
+      fireCooldown = 12;
+    }
+
+    function updatePlayer() {
+      if (keys.left) {
+        player.x -= player.speed;
+      }
+
+      if (keys.right) {
+        player.x += player.speed;
+      }
+
+      if (player.x < 0) {
+        player.x = 0;
+      }
+
+      if (player.x + player.width > canvas.width) {
+        player.x = canvas.width - player.width;
+      }
+    }
+
+    function updateBullets() {
+      bullets = bullets.filter((bullet) => {
+        bullet.y -= bullet.speed;
+        return bullet.y + bullet.height > 0;
+      });
+    }
+
+    function updateEnemies() {
+      enemies = enemies.filter((enemy) => {
+        enemy.y += enemy.speed;
+
+        if (enemy.y > canvas.height) {
+          lives -= 1;
+          updateHud("敌人漏过去了");
+          return false;
         }
-      }
 
-      function drawEnemy() {
-        ctx.fillStyle = "green";
-        ctx.fillRect(enemyX, enemyY, enemyWidth, enemyHeight);
-      }
+        return true;
+      });
+    }
 
-      function drawGameOver() {
-        ctx.fillStyle = "black";
-        ctx.font = "40px Arial";
-        ctx.fillText("游戏结束", 220, 200);
-      }
+    function isColliding(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
 
-      function updateBullet() {
-        if (bulletActive) {
-          bulletY -= 10;
+    function checkHits() {
+      const nextBullets = [];
+      const hitEnemyIndexes = new Set();
 
-          if (bulletY < 0) {
-            bulletActive = false;
+      bullets.forEach((bullet) => {
+        let hit = false;
+
+        enemies.forEach((enemy, index) => {
+          if (!hit && !hitEnemyIndexes.has(index) && isColliding(bullet, enemy)) {
+            hit = true;
+            hitEnemyIndexes.add(index);
+            score += 1;
           }
+        });
+
+        if (!hit) {
+          nextBullets.push(bullet);
         }
-      }
+      });
 
-      function updateEnemy() {
-        enemyX += enemySpeed;
-
-        if (enemyX <= 0 || enemyX + enemyWidth >= canvas.width) {
-          enemySpeed = -enemySpeed;
-          enemyY += 20;
-        }
-      }
-
-      function checkHit() {
-        if (
-          bulletActive &&
-          bulletX < enemyX + enemyWidth &&
-          bulletX + 10 > enemyX &&
-          bulletY < enemyY + enemyHeight &&
-          bulletY + 20 > enemyY
-        ) {
-          bulletActive = false;
-          enemyX = Math.random() * (canvas.width - enemyWidth);
-          enemyY = 50;
-          score++;
-          scoreText.innerText = "分数：" + score;
-        }
-      }
-
-      function checkGameOver() {
-        if (
-          enemyX < playerX + playerWidth &&
-          enemyX + enemyWidth > playerX &&
-          enemyY < playerY + playerHeight &&
-          enemyY + enemyHeight > playerY
-        ) {
-          gameOver = true;
-          restartButton.style.display = "inline-block";
-        }
-      }
-
-      function restartGame() {
-        score = 0;
-        gameOver = false;
-
-        playerX = 250;
-
-        bulletX = 0;
-        bulletY = 0;
-        bulletActive = false;
-
-        enemyX = 200;
-        enemyY = 50;
-        enemySpeed = 3;
-
-        scoreText.innerText = "分数：0";
-        restartButton.style.display = "none";
-      }
-
-      function drawGame() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawPlayer();
-        drawBullet();
-        drawEnemy();
-
-        if (gameOver) {
-          drawGameOver();
-        }
-      }
-
- document.addEventListener("keydown", function(event) {
-    if (gameOver) {
-      return;
+      bullets = nextBullets;
+      enemies = enemies.filter((_, index) => !hitEnemyIndexes.has(index));
     }
 
-    if (event.key === "ArrowLeft") {
-      playerX -= playerSpeed;
+    function checkPlayerCollision() {
+      const hitPlayer = enemies.some((enemy) => isColliding(enemy, player));
 
-      if (playerX < 0) {
-        playerX = 0;
+      if (hitPlayer) {
+        lives = 0;
       }
     }
 
-    if (event.key === "ArrowRight") {
-      playerX += playerSpeed;
+    function updateGame() {
+      if (!running) {
+        return;
+      }
 
-      if (playerX + playerWidth > canvas.width) {
-        playerX = canvas.width - playerWidth;
+      updatePlayer();
+      updateBullets();
+      updateEnemies();
+      checkHits();
+      checkPlayerCollision();
+
+      if (fireCooldown > 0) {
+        fireCooldown -= 1;
+      }
+
+      spawnTimer += 1;
+
+      if (spawnTimer >= 38) {
+        spawnEnemy();
+        spawnTimer = 0;
+      }
+
+      if (lives <= 0) {
+        endGame();
+      } else {
+        updateHud("战斗中");
       }
     }
 
-    if (event.key === " " && bulletActive === false) {
-      bulletX = playerX + playerWidth / 2 - 5;
-      bulletY = playerY;
-      bulletActive = true;
-    }
-  });
+    function drawStars() {
+      stars.forEach((star) => {
+        star.y += star.speed;
 
-      function gameLoop() {
-        if (!gameOver) {
-          updateBullet();
-          updateEnemy();
-          checkHit();
-          checkGameOver();
+        if (star.y > canvas.height) {
+          star.y = -4;
+          star.x = Math.random() * canvas.width;
         }
 
-        drawGame();
-        requestAnimationFrame(gameLoop);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+      });
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = "#6bd0ff";
+      ctx.beginPath();
+      ctx.moveTo(player.x + player.width / 2, player.y);
+      ctx.lineTo(player.x + player.width, player.y + player.height);
+      ctx.lineTo(player.x, player.y + player.height);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#b7f0ff";
+      ctx.fillRect(player.x + player.width / 2 - 5, player.y + 8, 10, 10);
+    }
+
+    function drawBullets() {
+      ctx.fillStyle = "#ffe066";
+      bullets.forEach((bullet) => {
+        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+      });
+    }
+
+    function drawEnemies() {
+      enemies.forEach((enemy) => {
+        ctx.fillStyle = "#ff6b6b";
+        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        ctx.fillStyle = "#ffd4d4";
+        ctx.fillRect(enemy.x + 7, enemy.y + 6, 8, 8);
+        ctx.fillRect(enemy.x + enemy.width - 15, enemy.y + 6, 8, 8);
+      });
+    }
+
+    function drawFrame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawStars();
+      drawPlayer();
+      drawBullets();
+      drawEnemies();
+    }
+
+    function loop() {
+      updateGame();
+      drawFrame();
+      animationFrameId = requestAnimationFrame(loop);
+    }
+
+    function bindHoldButton(button, direction, pressed) {
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        keys[direction] = pressed;
+      });
+
+      button.addEventListener("pointerup", () => {
+        keys[direction] = false;
+      });
+
+      button.addEventListener("pointerleave", () => {
+        keys[direction] = false;
+      });
+
+      button.addEventListener("pointercancel", () => {
+        keys[direction] = false;
+      });
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft") {
+        keys.left = true;
       }
 
-      gameLoop();
-    </script>
-  </body>
-  </html>
+      if (event.key === "ArrowRight") {
+        keys.right = true;
+      }
+
+      if (event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        fireBullet();
+      }
+    });
+
+    document.addEventListener("keyup", (event) => {
+      if (event.key === "ArrowLeft") {
+        keys.left = false;
+      }
+
+      if (event.key === "ArrowRight") {
+        keys.right = false;
+      }
+    });
+
+    startButton.addEventListener("click", startGame);
+    restartButton.addEventListener("click", startGame);
+    fireButton.addEventListener("click", fireBullet);
+
+    bindHoldButton(leftButton, "left", true);
+    bindHoldButton(rightButton, "right", true);
+
+    resetGame();
+    cancelAnimationFrame(animationFrameId);
+    loop();
+  </script>
+</body>
+</html>
